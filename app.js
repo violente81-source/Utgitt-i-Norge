@@ -445,4 +445,30 @@ if("serviceWorker" in navigator){
 }
 
 
-render();
+async function loadDefaultCSV(){
+  try{
+    const res = await fetch("scn-nes-default.csv");
+    const text = await res.text();
+
+    const rows = text.split("\n").map(r => r.split(","));
+    const headers = rows.shift();
+
+    data = rows
+      .filter(r => r.length > 1)
+      .map((r,i)=>({
+        id: Date.now()+i,
+        title: r[0] || "",
+        category: r[1] || "Bekreftet SCN",
+        stars: (r[2] || "").length,
+        owned: false,
+        wanted: false,
+        notes: ""
+      }));
+
+    save();
+    render();
+  }catch(err){
+    console.error("Kunne ikke laste standard CSV", err);
+  }
+}
+
