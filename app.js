@@ -447,7 +447,7 @@ if("serviceWorker" in navigator){
 
 async function loadDefaultCSV(){
   try{
-    const res = await fetch("scn-nes-default.csv");
+    const res = await fetch("./scn-nes-default.csv", { cache: "no-store" });
     const text = await res.text();
 
     const rows = text.split("\n").map(r => r.split(","));
@@ -471,4 +471,5 @@ async function loadDefaultCSV(){
     console.error("Kunne ikke laste standard CSV", err);
   }
 }
+
 
