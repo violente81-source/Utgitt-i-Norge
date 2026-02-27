@@ -47,6 +47,17 @@ function saveData(data){
 }
 
 let data = loadData();
+init();
+
+async function init(){
+  const saved = load();
+  if(saved && saved.length){
+    data = saved;
+    render();
+  } else {
+    await loadDefaultCSV();
+  }
+}
 
 const el = (id) => document.getElementById(id);
 const qEl = el("q");
@@ -432,5 +443,6 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js").catch(()=>{});
   });
 }
+
 
 render();
