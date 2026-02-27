@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>SCN NES – Samleliste</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="title">
+      <h1>SCN NES – Samleliste</h1>
+      <p class="sub">
+  Søk, filtrer og huk av eide/ønskede spill. Lagrer lokalt på enheten.<br>
+  <strong>Primærkilde:</strong> Spillmuseet SCN-liste (ESP-titler markert separat).
+</p>
+    </div>
+    <div class="header-actions">
+      <button id="btnExport" class="btn">Eksporter CSV</button>
+      <label class="btn btn-secondary">
+        Importer CSV
+        <input id="fileImport" type="file" accept=".csv,text/csv" hidden>
+      </label>
+      <button id="btnReset" class="btn btn-danger" title="Sletter lokale endringer på denne enheten">Nullstill lokalt</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="controls card">
+      <div class="row">
+        <input id="q" class="input" placeholder="Søk (tittel, kode, variant, kilde)…" />
+      </div>
+
+      <div class="row">
+        <div class="segmented">
+          <button class="seg" data-filter="all">Alle</button>
+          <button class="seg" data-filter="confirmed">Bekreftet SCN</button>
+          <button class="seg" data-filter="uncertain">Usikker / ESP</button>
+        </div>
+
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="onlyOwned"> Vis kun eide</label>
+          <label class="toggle"><input type="checkbox" id="onlyWanted"> Vis kun ønskeliste</label>
+        </div>
+      </div>
+
+      <div class="row meta">
+        <span id="stats"></span>
+<div class="progress" aria-label="Samleprogresjon">
+  <div id="progressFill" class="progress-fill" style="width:0%"></div>
+</div>
+        <span class="hint">Tips: Legg appen på hjemskjerm via Chrome → ⋮ → “Legg til på startskjerm”.</span>
+      </div>
+    </section>
+
+    <section class="list card">
+      <div class="list-header">
+        <div class="lh-left">
+          <h2>Spill</h2>
+          <p class="sub">Trykk på rad for detaljer. Huk av eier/ønsker på høyre side.</p>
+        </div>
+        <div class="lh-right">
+          <button id="btnAdd" class="btn">+ Legg til spill</button>
+        </div>
+      </div>
+
+      <div id="tableWrap" class="table-wrap"></div>
+    </section>
+
+    <dialog id="dlgEdit" class="dialog">
+      <form method="dialog" id="editForm">
+        <h3 id="dlgTitle">Legg til / rediger</h3>
+
+        <div class="grid">
+          <label>
+            Tittel
+            <input id="fTitle" required class="input" />
+          </label>
+          <label>
+            Kategori
+            <select id="fCategory" class="input">
+              <option value="confirmed">Bekreftet SCN</option>
+              <option value="uncertain">Usikker / ESP</option>
+            </select>
+          </label>
+          <label>
+            Katalogkode
+            <input id="fCode" class="input" placeholder="f.eks. NES-XX-XXX" />
+          </label>
+          <label>
+            Variant
+            <input id="fVariant" class="input" placeholder="f.eks. Rev-A / 5-screw / osv." />
+          </label>
+          <label>
+            Sjeldenhet (1–5)
+            <input id="fStars" class="input" type="number" min="1" max="5" step="1" />
+          </label>
+          <label>
+            Kilder (kort)
+            <input id="fSources" class="input" placeholder="f.eks. Spillmuseet, Bozz, Kreese" />
+          </label>
+          <label class="span2">
+            Notater
+            <textarea id="fNotes" class="input" rows="3" placeholder="Tilstand, kjøpssted, pris…"></textarea>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fOwned" /> Eier
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fWanted" /> Ønsker
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="btnDelete" type="button" class="btn btn-danger">Slett</button>
+          <div class="spacer"></div>
+          <button class="btn btn-secondary" value="cancel">Avbryt</button>
+          <button class="btn" id="btnSave" value="ok">Lagre</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
