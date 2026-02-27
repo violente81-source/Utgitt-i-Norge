@@ -4,6 +4,7 @@
 
 const STORAGE_KEY = "scn_nes_list_v1";
 
+// Fallback hvis CSV ikke kan lastes (brukes kun ved feil)
 const defaultData = [
   {
     id: crypto.randomUUID(),
@@ -33,12 +34,12 @@ const defaultData = [
 
 function loadData(){
   const raw = localStorage.getItem(STORAGE_KEY);
-  if(!raw) return structuredClone(defaultData);
+  if(!raw) return [];
   try{
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : structuredClone(defaultData);
+    return Array.isArray(parsed) ? parsed : [];
   }catch{
-    return structuredClone(defaultData);
+    return [];
   }
 }
 
@@ -46,20 +47,8 @@ function saveData(data){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-let data = loadData();
-init();
-
-async function init(){
-  const saved = load();
-  if(saved && saved.length){
-    data = saved;
-    render();
-  } else {
-    await loadDefaultCSV();
-  }
-}
-
 const el = (id) => document.getElementById(id);
+
 const qEl = el("q");
 const statsEl = el("stats");
 const progressFillEl = el("progressFill");
@@ -70,10 +59,42 @@ const onlyWantedEl = el("onlyWanted");
 const segButtons = [...document.querySelectorAll(".seg")];
 
 let filterCategory = "all"; // all|confirmed|uncertain
+let data = loadData();
 
+bootstrap();
+
+// ---------- Bootstrapping (autoload default CSV if empty) ----------
+async function bootstrap(){
+  if (Array.isArray(data) && data.length > 0) {
+    render();
+    return;
+  }
+
+  await loadDefaultCSV();
+}
+
+async function loadDefaultCSV(){
+  try{
+    const res = await fetch("./scn-nes-default.csv", { cache: "no-store" });
+    if(!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
+    const text = await res.text();
+
+    data = fromCSV(text).map(x => ({ ...x, id: x.id || crypto.randomUUID() }));
+
+    saveData(data);
+    render();
+  }catch(err){
+    console.error("Kunne ikke laste standard CSV:", err);
+    data = structuredClone(defaultData);
+    saveData(data);
+    render();
+  }
+}
+
+// ---------- UI helpers ----------
 function starsToText(n){
   const s = Math.max(0, Math.min(5, Number(n || 0)));
-  return "★★★★★☆☆☆☆☆".slice(5 - s, 10 - s); // returns n stars + (5-n) empties visually
+  return "★★★★★☆☆☆☆☆".slice(5 - s, 10 - s);
 }
 
 function categoryBadge(category){
@@ -81,6 +102,14 @@ function categoryBadge(category){
     return `<span class="badge good">✅ Bekreftet SCN</span>`;
   }
   return `<span class="badge warn">⚠️ Usikker / ESP</span>`;
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function matchesQuery(item, q){
@@ -102,63 +131,54 @@ function getView(){
     .sort((a,b) => a.title.localeCompare(b.title, "no"));
 }
 
+// ---------- Render ----------
 function render(){
   const view = getView();
 
-const total = data.length;
-const owned = data.filter(d => d.owned).length;
-const wanted = data.filter(d => d.wanted).length;
+  const total = data.length;
+  const owned = data.filter(d => d.owned).length;
+  const wanted = data.filter(d => d.wanted).length;
 
-const percent = total > 0 
-  ? Math.round((owned / total) * 100) 
-  : 0;
+  const percent = total > 0 ? Math.round((owned / total) * 100) : 0;
 
-statsEl.textContent =
-  `Totalt: ${total} • Eier: ${owned} (${percent} %) • Ønsker: ${wanted} • Viser nå: ${view.length}`;
+  statsEl.textContent =
+    `Totalt: ${total} • Eier: ${owned} (${percent} %) • Ønsker: ${wanted} • Viser nå: ${view.length}`;
 
-if (progressFillEl) {
-  progressFillEl.style.width = `${percent}%`;
-}
+  if (progressFillEl) progressFillEl.style.width = `${percent}%`;
 
-const rows = view.map(it => `
-  <tr data-id="${it.id}" class="row-item ${it.owned ? "row-owned" : ""}">
-    <td>
-      <div class="row-grid">
-  <div class="col-title">
-    <strong class="game-title">${escapeHtml(it.title)}</strong>
-  </div>
+  const rows = view.map(it => `
+    <tr data-id="${it.id}" class="row-item ${it.owned ? "row-owned" : ""}">
+      <td>
+        <div class="row-grid">
+          <div class="col-title">
+            <strong class="game-title">${escapeHtml(it.title)}</strong>
+          </div>
+          <div class="col-badge">
+            ${categoryBadge(it.category)}
+          </div>
+          <div class="col-stars">
+            <span class="badge"><span class="star">${starsToText(it.stars)}</span></span>
+          </div>
+        </div>
+      </td>
 
-  <div class="col-badge">
-    ${categoryBadge(it.category)}
-  </div>
-
-  <div class="col-stars">
-    <span class="badge"><span class="star">${starsToText(it.stars)}</span></span>
-  </div>
-</div>
-    </td>
-
-<td class="status-cell">
-  <button class="chip ${it.owned ? "chip-on" : ""}" data-action="owned">
-    Eier
-  </button>
-  <button class="chip ${it.wanted ? "chip-on" : ""}" data-action="wanted">
-    Ønsker
-  </button>
-</td>
-  </tr>
-`).join("");
+      <td class="status-cell">
+        <button class="chip ${it.owned ? "chip-on" : ""}" data-action="owned">Eier</button>
+        <button class="chip ${it.wanted ? "chip-on" : ""}" data-action="wanted">Ønsker</button>
+      </td>
+    </tr>
+  `).join("");
 
   tableWrap.innerHTML = `
     <table>
       <thead>
         <tr>
           <th style="width:75%;">Tittel</th>
-	  <th style="width:25%;">Status</th>
+          <th style="width:25%;">Status</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || `<tr><td colspan="3" class="small">Ingen treff. Prøv å endre filter/søk.</td></tr>`}
+        ${rows || `<tr><td colspan="2" class="small">Ingen treff. Prøv å endre filter/søk.</td></tr>`}
       </tbody>
     </table>
   `;
@@ -169,24 +189,19 @@ const rows = view.map(it => `
       const action = e.target?.dataset?.action;
 
       if(action === "owned"){
-  e.stopPropagation();
-  const item = data.find(d => d.id === id);
-  toggleFlag(id, "owned", !item?.owned);
-  return;
-}
-if(action === "wanted"){
-  e.stopPropagation();
-  const item = data.find(d => d.id === id);
-  toggleFlag(id, "wanted", !item?.wanted);
-  return;
-}
-      if(action === "edit"){
         e.stopPropagation();
-        openEditor(id);
+        const item = data.find(d => d.id === id);
+        toggleFlag(id, "owned", !item?.owned);
+        return;
+      }
+      if(action === "wanted"){
+        e.stopPropagation();
+        const item = data.find(d => d.id === id);
+        toggleFlag(id, "wanted", !item?.wanted);
         return;
       }
 
-      // Click anywhere else on row opens editor
+      // Klikk på raden åpner detaljer
       openEditor(id);
     });
   });
@@ -200,15 +215,7 @@ function toggleFlag(id, key, value){
   render();
 }
 
-function escapeHtml(s){
-  return String(s ?? "").replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-// --- Editor dialog ---
+// ---------- Editor dialog ----------
 const dlg = el("dlgEdit");
 const btnAdd = el("btnAdd");
 const btnDelete = el("btnDelete");
@@ -227,24 +234,27 @@ let editingId = null;
 
 function openEditor(id){
   const item = data.find(d => d.id === id);
+  if(!item) return;
+
   editingId = id;
 
-  fTitle.value = item?.title || "";
-  fCategory.value = item?.category || "confirmed";
-  fCode.value = item?.code || "";
-  fVariant.value = item?.variant || "";
-  fStars.value = item?.stars ?? "";
-  fSources.value = item?.sources || "";
-  fNotes.value = item?.notes || "";
-  fOwned.checked = !!item?.owned;
-  fWanted.checked = !!item?.wanted;
+  fTitle.value = item.title || "";
+  fCategory.value = item.category || "confirmed";
+  fCode.value = item.code || "";
+  fVariant.value = item.variant || "";
+  fStars.value = item.stars ?? "";
+  fSources.value = item.sources || "";
+  fNotes.value = item.notes || "";
+  fOwned.checked = !!item.owned;
+  fWanted.checked = !!item.wanted;
 
-  btnDelete.style.display = item ? "inline-flex" : "none";
+  btnDelete.style.display = "inline-flex";
   dlg.showModal();
 }
 
-btnAdd.addEventListener("click", () => {
+btnAdd?.addEventListener("click", () => {
   editingId = null;
+
   fTitle.value = "";
   fCategory.value = "confirmed";
   fCode.value = "";
@@ -254,11 +264,12 @@ btnAdd.addEventListener("click", () => {
   fNotes.value = "";
   fOwned.checked = false;
   fWanted.checked = false;
+
   btnDelete.style.display = "none";
   dlg.showModal();
 });
 
-el("editForm").addEventListener("submit", (e) => {
+el("editForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
 
   const payload = {
@@ -291,8 +302,9 @@ el("editForm").addEventListener("submit", (e) => {
   render();
 });
 
-btnDelete.addEventListener("click", () => {
+btnDelete?.addEventListener("click", () => {
   if(!editingId) return;
+
   const item = data.find(d => d.id === editingId);
   if(!item) return;
 
@@ -305,7 +317,7 @@ btnDelete.addEventListener("click", () => {
   render();
 });
 
-// --- Filters & search ---
+// ---------- Filters & search ----------
 qEl.addEventListener("input", render);
 onlyOwnedEl.addEventListener("change", render);
 onlyWantedEl.addEventListener("change", render);
@@ -318,22 +330,23 @@ segButtons.forEach(btn => {
     render();
   });
 });
-segButtons[0].classList.add("active");
+segButtons[0]?.classList.add("active");
 
-// --- CSV import/export ---
-el("btnExport").addEventListener("click", () => {
+// ---------- CSV export/import (optional to keep) ----------
+const COLS = ["id","title","category","code","variant","stars","sources","notes","owned","wanted"];
+
+el("btnExport")?.addEventListener("click", () => {
   const csv = toCSV(data);
   downloadText(csv, "scn-nes-list.csv", "text/csv");
 });
 
-el("fileImport").addEventListener("change", async (e) => {
+el("fileImport")?.addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if(!file) return;
+
   const text = await file.text();
   const imported = fromCSV(text);
 
-  // Merge strategy: import REPLACES the list.
-  // (We can change this later to "merge" if you want.)
   const ok = confirm(`Importere ${imported.length} rader og erstatte lista på denne enheten?`);
   if(!ok) return;
 
@@ -343,16 +356,14 @@ el("fileImport").addEventListener("change", async (e) => {
   e.target.value = "";
 });
 
-el("btnReset").addEventListener("click", () => {
-  const ok = confirm("Nullstille lokale endringer og gå tilbake til standarddata på denne enheten?");
+el("btnReset")?.addEventListener("click", () => {
+  const ok = confirm("Nullstille lokale endringer og laste standardlista på nytt?");
   if(!ok) return;
-  localStorage.removeItem(STORAGE_KEY);
-  data = loadData();
-  render();
-});
 
-// CSV columns
-const COLS = ["id","title","category","code","variant","stars","sources","notes","owned","wanted"];
+  localStorage.removeItem(STORAGE_KEY);
+  data = [];
+  bootstrap();
+});
 
 function toCSV(items){
   const head = COLS.join(",");
@@ -367,19 +378,20 @@ function fromCSV(text){
   const header = rows[0].map(h => h.trim());
   const idx = Object.fromEntries(COLS.map(c => [c, header.indexOf(c)]));
 
-  // Support files that at least have title/category
-  return rows.slice(1).filter(r => r.some(x => String(x).trim() !== "")).map(r => ({
-    id: at(r, idx.id),
-    title: at(r, idx.title) || "",
-    category: (at(r, idx.category) || "confirmed").toLowerCase() === "uncertain" ? "uncertain" : "confirmed",
-    code: at(r, idx.code) || "",
-    variant: at(r, idx.variant) || "",
-    stars: Number(at(r, idx.stars) || 0),
-    sources: at(r, idx.sources) || "",
-    notes: at(r, idx.notes) || "",
-    owned: String(at(r, idx.owned) || "").toLowerCase() === "true",
-    wanted: String(at(r, idx.wanted) || "").toLowerCase() === "true"
-  }));
+  return rows.slice(1)
+    .filter(r => r.some(x => String(x).trim() !== ""))
+    .map(r => ({
+      id: at(r, idx.id),
+      title: at(r, idx.title) || "",
+      category: (at(r, idx.category) || "confirmed").toLowerCase() === "uncertain" ? "uncertain" : "confirmed",
+      code: at(r, idx.code) || "",
+      variant: at(r, idx.variant) || "",
+      stars: Number(at(r, idx.stars) || 0),
+      sources: at(r, idx.sources) || "",
+      notes: at(r, idx.notes) || "",
+      owned: String(at(r, idx.owned) || "").toLowerCase() === "true",
+      wanted: String(at(r, idx.wanted) || "").toLowerCase() === "true"
+    }));
 }
 
 function at(row, i){
@@ -403,7 +415,6 @@ function downloadText(text, filename, mime){
   URL.revokeObjectURL(url);
 }
 
-// Small CSV parser (handles quoted commas/newlines)
 function parseCSV(text){
   const rows = [];
   let row = [];
@@ -443,33 +454,4 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js").catch(()=>{});
   });
 }
-
-
-async function loadDefaultCSV(){
-  try{
-    const res = await fetch("./scn-nes-default.csv", { cache: "no-store" });
-    const text = await res.text();
-
-    const rows = text.split("\n").map(r => r.split(","));
-    const headers = rows.shift();
-
-    data = rows
-      .filter(r => r.length > 1)
-      .map((r,i)=>({
-        id: Date.now()+i,
-        title: r[0] || "",
-        category: r[1] || "Bekreftet SCN",
-        stars: (r[2] || "").length,
-        owned: false,
-        wanted: false,
-        notes: ""
-      }));
-
-    save();
-    render();
-  }catch(err){
-    console.error("Kunne ikke laste standard CSV", err);
-  }
-}
-
 
