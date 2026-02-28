@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>Samling</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="title">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <a class="btn btn-secondary" href="index.html">← Til samlinger</a>
+        <h1 id="collectionTitle" style="margin:0;">Samling</h1>
+      </div>
+      <p class="sub" id="collectionSub">
+        Søk, filtrer og huk av eide/ønskede. Lagrer lokalt på enheten.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <!-- CSV -->
+      <button id="btnExport" class="btn">Eksporter CSV</button>
+      <label class="btn btn-secondary">
+        Importer CSV
+        <input id="fileImport" type="file" accept=".csv,text/csv" hidden>
+      </label>
+
+      <!-- JSON backup/restore -->
+      <button id="btnBackupJson" class="btn btn-secondary" title="Laster ned en komplett backup av hele listen (JSON)">
+        Backup (JSON)
+      </button>
+      <label class="btn btn-secondary" title="Gjenopprett liste fra en JSON-backup (erstatter lokale data)">
+        Gjenopprett (JSON)
+        <input id="fileImportJson" type="file" accept="application/json,.json" hidden>
+      </label>
+
+      <button id="btnReset" class="btn btn-danger" title="Sletter lokale endringer på denne enheten">Nullstill lokalt</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="controls card">
+      <div class="row">
+        <input id="q" class="input" placeholder="Søk (tittel, kode, variant, kilde)…" />
+      </div>
+
+      <div class="row">
+        <div class="segmented">
+          <button class="seg" data-filter="all">Alle</button>
+          <button class="seg" data-filter="confirmed">Bekreftet</button>
+	  <button class="seg" data-filter="unverified">Ubekreftet</button>
+        </div>
+
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="onlyOwned"> Vis kun eide</label>
+          <label class="toggle"><input type="checkbox" id="onlyWanted"> Vis kun ønskeliste</label>
+        </div>
+      </div>
+
+      <div class="row meta">
+        <span id="stats"></span>
+        <span id="lastBackup" class="hint" style="margin-left:10px;"></span>
+        <div class="progress" aria-label="Samleprogresjon">
+          <div id="progressFill" class="progress-fill" style="width:0%"></div>
+        </div>
+        <span class="hint">Tips: Legg appen på hjemskjerm via Chrome → ⋮ → “Legg til på startskjerm”.</span>
+      </div>
+    </section>
+
+    <section class="list card">
+      <div class="list-header">
+        <div class="lh-left">
+          <h2>Objekter</h2>
+          <p class="sub">Trykk på rad for detaljer. Huk av eier/ønsker på høyre side.</p>
+        </div>
+        <div class="lh-right">
+          <button id="btnAdd" class="btn">+ Legg til</button>
+        </div>
+      </div>
+
+      <div id="tableWrap" class="table-wrap"></div>
+    </section>
+
+    <dialog id="dlgEdit" class="dialog">
+      <form method="dialog" id="editForm">
+        <h3 id="dlgTitle">Legg til / rediger</h3>
+
+        <div class="grid">
+          <label>
+            Tittel
+            <input id="fTitle" required class="input" />
+          </label>
+          <label>
+            Kategori
+            <select id="fCategory" class="input">
+              <option value="confirmed">Bekreftet</option>
+	               <option value="unverified">Ubekreftet</option>
+            </select>
+          </label>
+          <label>
+            Katalogkode
+            <input id="fCode" class="input" placeholder="f.eks. SCN / katalogkode / nr." />
+          </label>
+          <label>
+            Variant
+            <input id="fVariant" class="input" placeholder="f.eks. Rev-A / 5-screw / utgave..." />
+          </label>
+          <label>
+  	    Tilstand (0–5)
+ 	    <input id="fStars" class="input" type="number" min="0" max="5" step="1" />
+  	    <small class="small">0 = ukjent • 1 = dårlig • 3 = pen • 5 = samlerstand</small>
+	    </label>
+          <label>
+            Kilder (kort)
+            <input id="fSources" class="input" placeholder="f.eks. Spillmuseet, Bozz, Kreese" />
+          </label>
+          <label class="span2">
+            Notater
+            <textarea id="fNotes" class="input" rows="3" placeholder="Tilstand, kjøpssted, pris…"></textarea>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fOwned" /> Eier
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fWanted" /> Ønsker
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="btnDelete" type="button" class="btn btn-danger">Slett</button>
+          <div class="spacer"></div>
+          <button class="btn btn-secondary" value="cancel">Avbryt</button>
+          <button class="btn" id="btnSave" value="ok">Lagre</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

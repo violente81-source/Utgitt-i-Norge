@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>Samlinger</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Fallback/forsterkning for startside:
+       gjør at <a class="btn"> ser ut som knapper + pent grid -->
+  <style>
+    .hub-wrap { display: grid; gap: 12px; }
+    .hub-section { padding: 16px; }
+    .hub-title { display:flex; align-items:baseline; justify-content:space-between; gap: 10px; flex-wrap:wrap; }
+    .hub-title h2 { margin: 0; }
+    .hub-title .sub { margin: 0; opacity: .8; }
+    .hub-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }
+
+    /* Viktig: anchor-knapper */
+    a.btn, a.btn.btn-secondary, a.btn.btn-danger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      text-decoration: none;
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: inherit;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+    a.btn:active { transform: translateY(0px); }
+
+    /* “kort”-følelse på knappen */
+    .hub-cardline { display:flex; flex-direction:column; gap: 2px; min-width: 0; }
+    .hub-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hub-desc { font-size: .9em; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hub-icon { font-size: 1.1em; opacity: .9; }
+
+    /* Lite “badge” */
+    .pill {
+      font-size: .78em;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      opacity: .9;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="title">
+      <h1>Samlinger utgitt i Norge</h1>
+      <p class="sub">
+        Velg hva du vil jobbe med. Hver samling lagres lokalt på enheten.
+      </p>
+    </div>
+    <div class="header-actions">
+      <span class="pill">PWA • Lokalt</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="hub-wrap">
+
+      <section class="card hub-section">
+        <div class="hub-title">
+          <h2>TV-spill</h2>
+          <p class="sub">NES, SNES, PlayStation, Sega osv.</p>
+        </div>
+
+        <div class="hub-grid">
+          <a class="btn" href="collection.html?c=nes">
+            <span class="hub-cardline">
+              <span class="hub-name">NES</span>
+              <span class="hub-desc">Nintendo Entertainment System</span>
+            </span>
+            <span class="hub-icon">🎮</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=snes">
+            <span class="hub-cardline">
+              <span class="hub-name">SNES</span>
+              <span class="hub-desc">Super Nintendo</span>
+            </span>
+            <span class="hub-icon">🕹️</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=ps1">
+            <span class="hub-cardline">
+              <span class="hub-name">PS1</span>
+              <span class="hub-desc">PlayStation 1</span>
+            </span>
+            <span class="hub-icon">💿</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=ps2">
+            <span class="hub-cardline">
+              <span class="hub-name">PS2</span>
+              <span class="hub-desc">PlayStation 2</span>
+            </span>
+            <span class="hub-icon">📀</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=mastersystem">
+            <span class="hub-cardline">
+              <span class="hub-name">Sega Master System</span>
+              <span class="hub-desc">Sega 8-bit</span>
+            </span>
+            <span class="hub-icon">🧩</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="card hub-section">
+        <div class="hub-title">
+          <h2>Tegneserier</h2>
+          <p class="sub">Egne lister per serie/kategori.</p>
+        </div>
+
+        <div class="hub-grid">
+          <a class="btn btn-secondary" href="collection.html?c=comics-conan">
+            <span class="hub-cardline">
+              <span class="hub-name">Conan</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">⚔️</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=comics-nintendo-magasin">
+            <span class="hub-cardline">
+              <span class="hub-name">Nintendo Magasin</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">📰</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=comics-action-force">
+            <span class="hub-cardline">
+              <span class="hub-name">Action Force</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">🪖</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=comics-transformers">
+            <span class="hub-cardline">
+              <span class="hub-name">Transformers</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">🤖</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=comics-turtles">
+            <span class="hub-cardline">
+              <span class="hub-name">Turtles</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">🐢</span>
+          </a>
+
+          <a class="btn btn-secondary" href="collection.html?c=comics-star-wars">
+            <span class="hub-cardline">
+              <span class="hub-name">Star Wars</span>
+              <span class="hub-desc">Norske utgaver</span>
+            </span>
+            <span class="hub-icon">✨</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="card hub-section">
+        <div class="hub-title">
+          <h2>Utvid senere</h2>
+          <p class="sub">Legg til flere samlinger når du vil.</p>
+        </div>
+        <p class="sub" style="margin: 10px 0 0 0;">
+          Når du vil utvide: legg til en ny entry i <code>COLLECTIONS</code> i <code>app.js</code>,
+          og legg til en knapp her på startsiden.
+        </p>
+      </section>
+
+    </div>
+  </main>
+</body>
+</html>
