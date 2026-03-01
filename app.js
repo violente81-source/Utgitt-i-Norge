@@ -1,6 +1,8 @@
+console.log("APP.JS LOADED v2026-02-28-1");
 // --- Multi-collection PWA + local data store ---
-// Item format:
-// { id, title, category: "confirmed"|"unverified", code, variant, stars (0-5), sources, notes, owned(bool), wanted(bool) }
+// Item format (ny):
+// { id, title, category: "confirmed"|"unverified", code, variant, sources, notes,
+//   cart(bool), manual(bool), box(bool), wanted(bool) }
 
 const DEFAULTS_DIR = "./defaults/";
 
@@ -21,7 +23,27 @@ const COLLECTIONS = {
   "comics-transformers": { title: "Tegneserier – Transformers", sub: "Transformers-samling. Default CSV kan legges til senere.", storageKey: "col_comics_transformers_v1" },
   "comics-turtles": { title: "Tegneserier – Turtles", sub: "Turtles-samling. Default CSV kan legges til senere.", storageKey: "col_comics_turtles_v1" },
   "comics-star-wars": { title: "Tegneserier – Star Wars", sub: "Star Wars-samling. Default CSV kan legges til senere.", storageKey: "col_comics_star_wars_v1" },
+  "comics-master-of-the-universe": {title: "Tegneserier – Master of the Universe", sub: "Master of the Universe (inkl. Giveaway / Starfighter / Film Spesial).", storageKey: "col_comics_master_of_the_universe_v1"},
 };
+
+function uuid(){
+  // randomUUID finnes ikke alltid på mobil over http
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+
+  // fallback: pseudo-UUID med crypto.getRandomValues
+  const c = globalThis.crypto;
+  if (c?.getRandomValues){
+    const a = new Uint8Array(16);
+    c.getRandomValues(a);
+    a[6] = (a[6] & 0x0f) | 0x40; // version 4
+    a[8] = (a[8] & 0x3f) | 0x80; // variant
+    const hex = [...a].map(b => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
+
+  // siste utvei
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function getCollectionId(){
   const p = new URLSearchParams(location.search);
@@ -31,10 +53,30 @@ function getCollectionConfig(){
   const id = getCollectionId();
   return COLLECTIONS[id] || null;
 }
-function defaultCsvFor(id){
-  return `${DEFAULTS_DIR}${id}.csv`;
+let DEFAULT_MAP = null;
+
+async function loadDefaultManifest(){
+  console.log("Laster manifest: defaults/defaults.json");
+  if (DEFAULT_MAP) return DEFAULT_MAP;
+
+  const res = await fetch("defaults/defaults.json", { cache: "no-store" });
+  const files = await res.json();
+  console.log("Manifest files:", files);
+console.log("DEFAULT_MAP:", DEFAULT_MAP);
+
+  DEFAULT_MAP = {};
+  for (const path of files) {
+    const name = path.split("/").pop().replace(".csv", "");
+    DEFAULT_MAP[name] = path;
+  }
+
+  return DEFAULT_MAP;
 }
 
+async function defaultCsvFor(collectionId){
+  const map = await loadDefaultManifest();
+  return map[collectionId] || `defaults/${collectionId}.csv`;
+}
 const collection = getCollectionConfig();
 if(!collection){
   // Åpnet collection.html uten ?c=...
@@ -46,19 +88,21 @@ document.getElementById("collectionSub")?.replaceChildren(document.createTextNod
 
 const STORAGE_KEY = collection.storageKey;
 const LAST_BACKUP_KEY = `last_backup__${STORAGE_KEY}`;
+const KIND = collection.kind || (getCollectionId().startsWith("comics-") ? "comics" : "games");
 
 // Fallback data (kun hvis noe går helt galt)
 const defaultData = [
   {
-    id: crypto.randomUUID(),
+    id: uuid(),
     title: "Eksempel",
     category: "confirmed",
     code: "",
     variant: "",
-    stars: 0,
     sources: "",
     notes: "",
-    owned: false,
+    cart: false,
+    manual: false,
+    box: false,
     wanted: false
   }
 ];
@@ -85,33 +129,31 @@ const lastBackupEl = el("lastBackup");
 const progressFillEl = el("progressFill");
 const tableWrap = el("tableWrap");
 
-const onlyOwnedEl = el("onlyOwned");
+const onlyOwnedEl = el("onlyOwned");     // i HTML heter den fortsatt onlyOwned, men betyr "cart"
 const onlyWantedEl = el("onlyWanted");
 const segButtons = [...document.querySelectorAll(".seg")];
 
 let filterCategory = "all"; // all|confirmed|unverified
-let data = loadData();
 
-bootstrap();
+// ✅ NYTT: husk hvilke grupper som er åpne mellom render()
+const openGroups = new Set();
+
+// Last + migrer ev. gammel data (owned/stars -> cart/manual/box)
+let data = migrateItems(loadData());
 
 // ---------- Bootstrapping ----------
-async function bootstrap(){
-  updateLastBackupUi();
-
-  if (Array.isArray(data) && data.length > 0) {
-    render();
-    return;
-  }
-  await loadDefaultCSVOrEmpty();
-}
-
 async function loadDefaultCSVOrEmpty(){
-  const csvPath = defaultCsvFor(getCollectionId());
+  try {
+    const id = getCollectionId();
+    console.log("getCollectionId() =", id);
 
-  try{
+    const normalizedId = (id === "comics") ? "comics-conan" : id;
+
+    const csvPath = await defaultCsvFor(normalizedId);
+    console.log("csvPath =", csvPath);
+
     const res = await fetch(csvPath, { cache: "no-store" });
 
-    // Missing default CSV is OK -> start empty
     if(!res.ok){
       console.warn(`Ingen default CSV for ${csvPath} (status ${res.status}). Starter tomt.`);
       data = [];
@@ -121,36 +163,96 @@ async function loadDefaultCSVOrEmpty(){
     }
 
     const text = await res.text();
-    const imported = fromCSV(text).map(x => ({ ...x, id: x.id || crypto.randomUUID() }));
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
 
-    data = imported;
+    data = parsed.map(r => ({
+      ...r,
+      id: r.id || crypto.randomUUID(),
+      stars: r.stars ? Number(r.stars) : 0,
+      owned: String(r.owned).toLowerCase() === "true",
+      wanted: String(r.wanted).toLowerCase() === "true",
+    }));
+
     saveData(data);
     render();
-  }catch(err){
-    console.error("Kunne ikke laste default CSV. Starter med fallback:", err);
-    data = structuredClone(defaultData);
+  } catch (err){
+    console.error("Feil ved lasting av default CSV:", err);
+    data = [];
     saveData(data);
     render();
   }
+}
+
+// ---------- Migration / normalization ----------
+function migrateItems(items){
+  if(!Array.isArray(items)) return [];
+
+  let changed = false;
+
+  const normalized = items.map((it) => {
+    const obj = (it && typeof it === "object") ? it : {};
+    const out = {
+      id: String(obj.id ?? uuid()),
+      title: String(obj.title ?? ""),
+      category: (function(){
+        const c = String(obj.category ?? "").toLowerCase();
+        if(c === "confirmed") return "confirmed";
+        if(c === "unverified") return "unverified";
+        if(c === "uncertain") return "unverified";
+        return "confirmed";
+      })(),
+      code: String(obj.code ?? ""),
+      variant: String(obj.variant ?? ""),
+      sources: String(obj.sources ?? ""),
+      notes: String(obj.notes ?? ""),
+      cart: Boolean(obj.cart ?? false),
+      manual: Boolean(obj.manual ?? false),
+      box: Boolean(obj.box ?? false),
+      wanted: Boolean(obj.wanted ?? false)
+    };
+
+    // legacy: owned -> cart
+    if("owned" in obj && out.cart === false){
+      out.cart = Boolean(obj.owned);
+      if(out.cart) changed = true;
+    }
+
+    // legacy: stars ignoreres
+    if("stars" in obj) changed = true;
+
+    // hvis noen hadde "true"/"false" som string
+    if(typeof obj.cart === "string"){ out.cart = obj.cart.toLowerCase() === "true"; changed = true; }
+    if(typeof obj.manual === "string"){ out.manual = obj.manual.toLowerCase() === "true"; changed = true; }
+    if(typeof obj.box === "string"){ out.box = obj.box.toLowerCase() === "true"; changed = true; }
+    if(typeof obj.wanted === "string"){ out.wanted = obj.wanted.toLowerCase() === "true"; changed = true; }
+
+    return out;
+  });
+
+  // Skriv tilbake hvis vi faktisk migrerte noe
+  if(changed){
+    try{ saveData(normalized); }catch{}
+  }
+
+  return normalized;
 }
 
 // ---------- UI helpers ----------
-function conditionWord(n){
-  const s = Math.max(0, Math.min(5, Number(n ?? 0)));
-  if(s === 0) return "—";
-  return ["Dårlig","OK","Pen","Veldig pen","Samlerstand"][s - 1];
-}
-function conditionHint(n){
-  const s = Math.max(0, Math.min(5, Number(n ?? 0)));
-  if(s === 0) return "Tilstand: ukjent";
-  return `Tilstand: ${s}/5 – ${conditionWord(s)}`;
-}
-
 function categoryBadge(category){
   if(category === "confirmed"){
-    return `<span class="badge good">✅ Bekreftet</span>`;
+    return `
+      <span class="cat" title="Bekreftet">
+        <span class="cat-dot confirmed" aria-hidden="true"></span>
+        <span class="cat-text">Bekreftet</span>
+      </span>
+    `;
   }
-  return `<span class="badge warn">⚠️ Ubekreftet</span>`;
+  return `
+    <span class="cat" title="Ubekreftet">
+      <span class="cat-dot unverified" aria-hidden="true"></span>
+      <span class="cat-text">Ubekreftet</span>
+    </span>
+  `;
 }
 
 function escapeHtml(s){
@@ -165,7 +267,11 @@ function matchesQuery(item, q){
   if(!q) return true;
   const hay = [
     item.title, item.code, item.variant, item.sources, item.notes,
-    item.category, item.owned ? "eier" : "", item.wanted ? "ønsker" : ""
+    item.category,
+    item.cart ? "cart" : "",
+    item.manual ? "manual" : "",
+    item.box ? "box" : "",
+    item.wanted ? "ønsker" : ""
   ].join(" ").toLowerCase();
   return hay.includes(q.toLowerCase());
 }
@@ -174,7 +280,7 @@ function getView(){
   const q = qEl.value.trim();
   return data
     .filter(it => (filterCategory === "all" ? true : it.category === filterCategory))
-    .filter(it => (onlyOwnedEl.checked ? it.owned : true))
+    .filter(it => (onlyOwnedEl.checked ? it.cart : true))   // "Vis kun cart"
     .filter(it => (onlyWantedEl.checked ? it.wanted : true))
     .filter(it => matchesQuery(it, q))
     .sort((a,b) => String(a.title).localeCompare(String(b.title), "no"));
@@ -238,18 +344,40 @@ function groupItems(items){
   return { mode, keys, map };
 }
 
+// ✅ NYTT: les åpne grupper fra DOM før vi re-render
+function syncOpenGroupsFromDom(){
+  if(!tableWrap) return;
+  const openEls = tableWrap.querySelectorAll('details.group[open]');
+  openGroups.clear();
+  for(const d of openEls){
+    const g = d.getAttribute("data-group");
+    if(g) openGroups.add(g);
+  }
+}
+
 // ---------- Render ----------
 function render(){
-  const view = getView();
+  syncOpenGroupsFromDom();
 
+  const view = getView();
   const total = data.length;
-  const owned = data.filter(d => d.owned).length;
+
+  const haveCount = (KIND === "comics")
+    ? data.filter(d => d.owned).length
+    : data.filter(d => d.cart).length;
+
+  const cibCount = (KIND === "games")
+    ? data.filter(d => d.cart && d.manual && d.box).length
+    : 0;
+
   const wanted = data.filter(d => d.wanted).length;
-  const percent = total > 0 ? Math.round((owned / total) * 100) : 0;
+  const percent = total > 0 ? Math.round((haveCount / total) * 100) : 0;
 
   if(statsEl){
     statsEl.textContent =
-      `Totalt: ${total} • Eier: ${owned} (${percent} %) • Ønsker: ${wanted} • Viser nå: ${view.length}`;
+      (KIND === "comics")
+        ? `Totalt: ${total} • Eier: ${haveCount} (${percent} %) • Ønsker: ${wanted} • Viser nå: ${view.length}`
+        : `Totalt: ${total} • Cart: ${haveCount} (${percent} %) • CIB: ${cibCount} • Ønsker: ${wanted} • Viser nå: ${view.length}`;
   }
   if(progressFillEl) progressFillEl.style.width = `${percent}%`;
 
@@ -262,40 +390,115 @@ function render(){
   const groupsHtml = keys.map(key => {
     const items = map.get(key) || [];
 
-    const rows = items.map(it => `
-      <tr data-id="${escapeHtml(it.id)}" class="row-item ${it.owned ? "row-owned" : ""}">
-        <td>
-          <div class="row-grid">
-            <div class="col-title">
-              <strong class="game-title">${escapeHtml(it.title)}</strong>
-            </div>
-            <div class="col-badge">
-              ${categoryBadge(it.category)}
-            </div>
-            <div class="col-stars">
-              <span class="badge" title="${escapeHtml(conditionHint(it.stars))}">
-                ${escapeHtml(conditionWord(it.stars))}
-              </span>
-            </div>
-          </div>
-        </td>
+    const rows = items.map(it => {
+      // --- Games ---
+      const hasCart = !!it.cart;
+      const hasManual = !!it.manual;
+      const hasBox = !!it.box;
+      const isCib = hasCart && hasManual && hasBox;
+      const hasAnyGame = hasCart || hasManual || hasBox;
 
-        <td class="status-cell">
-          <button class="chip ${it.owned ? "chip-on" : ""}" data-action="owned">Eier</button>
-          <button class="chip ${it.wanted ? "chip-on" : ""}" data-action="wanted">Ønsker</button>
-        </td>
-      </tr>
-    `).join("");
+      // --- Comics ---
+      const comicOwned = !!it.owned;
+const rawComicCond = String(it.comicCond || ""); // kan være "", "bad", "ok", "good"
+const comicCond = comicOwned ? (rawComicCond || "ok") : ""; // bare aktiv hvis eid
+const comicIsGood = comicOwned && comicCond === "good";
+const issue = (KIND === "comics")
+  ? (String(it.title || "").match(/#\s*\d+/)?.[0]?.replace(/\s+/g, "") || "")
+  : "";
+
+      const rowHaveClass =
+        (KIND === "comics")
+          ? (comicOwned ? "row-have" : "")
+          : (hasAnyGame ? "row-have" : "");
+
+      const rowCibClass =
+        (KIND === "games" && isCib) ? "row-cib" : "";
+
+      return `
+        <tr data-id="${escapeHtml(it.id)}" class="row-item ${rowHaveClass} ${rowCibClass}">
+          <td>
+            <div class="row-grid">
+              <div class="col-title">
+                <strong class="game-title">
+  ${KIND === "games" && isCib ? `<span class="title-icon cib" title="CIB">🏆</span>` : ""}
+  ${KIND === "comics" && comicIsGood ? `<span class="title-icon cib" title="Veldig fin stand">🏆</span>` : ""}
+
+  ${KIND === "comics" && issue
+    ? `<span class="issue-pill" title="Nummer">${escapeHtml(issue)}</span>`
+    : ""}
+
+  <span class="title-text">${escapeHtml(it.title)}</span>
+
+  ${it.wanted ? `<span class="title-icon wanted" title="Ønsker">⭐</span>` : ""}
+</strong>
+              </div>
+
+              <div class="col-badge">
+                ${categoryBadge(it.category)}
+              </div>
+
+              <div class="col-stars">
+                ${KIND === "games" ? `
+                  <div class="have-pills" aria-label="Innhold">
+                    ${isCib
+                      ? `<span class="have-pill cib" title="Cart + Manual + Box">CIB</span>`
+                      : `
+                        <span class="have-pill ${hasCart ? "on" : ""}" title="Cart">C</span>
+                        <span class="have-pill ${hasManual ? "on" : ""}" title="Manual">M</span>
+                        <span class="have-pill ${hasBox ? "on" : ""}" title="Box">B</span>
+                      `
+                    }
+                  </div>
+                ` : `
+                  <div class="have-pills" aria-label="Tilstand">
+                    <span class="have-pill ${comicCond === "bad" ? "on bad" : ""}" title="Dårlig">D</span>
+                    <span class="have-pill ${comicCond === "ok" ? "on ok" : ""}" title="OK">OK</span>
+                    <span class="have-pill ${comicCond === "good" ? "on good" : ""}" title="Veldig fin">VG</span>
+                  </div>
+                `}
+              </div>
+            </div>
+          </td>
+
+          <td class="status-cell">
+            ${KIND === "games" ? `
+              <button class="iconchip ${hasCart ? "iconchip-on" : ""}" data-action="cart" title="Cart" type="button">🎮</button>
+              <button class="iconchip ${hasManual ? "iconchip-on" : ""}" data-action="manual" title="Manual" type="button">📘</button>
+              <button class="iconchip ${hasBox ? "iconchip-on" : ""}" data-action="box" title="Box" type="button">📦</button>
+              <button class="iconchip ${it.wanted ? "iconchip-on" : ""}" data-action="wanted" title="Ønsker" type="button">⭐</button>
+            ` : `
+  <button class="iconchip ${comicCond === "bad" ? "iconchip-on" : ""}" data-action="cond_bad" title="Dårlig" type="button">😬</button>
+  <button class="iconchip ${comicCond === "ok" ? "iconchip-on" : ""}" data-action="cond_ok" title="OK" type="button">🙂</button>
+  <button class="iconchip ${comicCond === "good" ? "iconchip-on" : ""}" data-action="cond_good" title="Veldig fin" type="button">🏆</button>
+  <button class="iconchip ${it.wanted ? "iconchip-on" : ""}" data-action="wanted" title="Ønsker" type="button">⭐</button>
+`}
+          </td>
+        </tr>
+      `;
+    }).join("");
 
     const label = key;
     const count = items.length;
 
+    const shouldOpen = autoOpen || openGroups.has(String(key));
+
+    const haveInGroup = (KIND === "comics")
+      ? items.filter(x => x.owned).length
+      : items.filter(x => x.cart).length;
+
+    const isComplete = count > 0 && haveInGroup === count;
+
     return `
-      <details class="group" ${autoOpen ? "open" : ""} data-group="${escapeHtml(key)}">
+      <details class="group ${isComplete ? "group-complete" : ""}" ${shouldOpen ? "open" : ""} data-group="${escapeHtml(key)}">
         <summary class="group-summary">
           <span class="group-title">${escapeHtml(label)}</span>
-          <span class="group-meta">${count}</span>
+          <span class="group-meta">
+            ${isComplete ? `<span class="group-done" title="Fullført">✔</span>` : ""}
+            ${haveInGroup}/${count}
+          </span>
         </summary>
+
         <div class="group-body">
           <table>
             <thead>
@@ -333,10 +536,11 @@ const fTitle = el("fTitle");
 const fCategory = el("fCategory");
 const fCode = el("fCode");
 const fVariant = el("fVariant");
-const fStars = el("fStars");
 const fSources = el("fSources");
 const fNotes = el("fNotes");
-const fOwned = el("fOwned");
+const fCart = el("fCart");
+const fManual = el("fManual");
+const fBox = el("fBox");
 const fWanted = el("fWanted");
 
 let editingId = null;
@@ -351,10 +555,12 @@ function openEditor(id){
   fCategory.value = item.category || "confirmed";
   fCode.value = item.code || "";
   fVariant.value = item.variant || "";
-  fStars.value = item.stars ?? 0;
   fSources.value = item.sources || "";
   fNotes.value = item.notes || "";
-  fOwned.checked = !!item.owned;
+
+  fCart.checked = !!item.cart;
+  fManual.checked = !!item.manual;
+  fBox.checked = !!item.box;
   fWanted.checked = !!item.wanted;
 
   if(btnDelete) btnDelete.style.display = "inline-flex";
@@ -368,10 +574,12 @@ btnAdd?.addEventListener("click", () => {
   fCategory.value = "confirmed";
   fCode.value = "";
   fVariant.value = "";
-  fStars.value = 0;
   fSources.value = "";
   fNotes.value = "";
-  fOwned.checked = false;
+
+  fCart.checked = false;
+  fManual.checked = false;
+  fBox.checked = false;
   fWanted.checked = false;
 
   if(btnDelete) btnDelete.style.display = "none";
@@ -382,15 +590,16 @@ el("editForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
 
   const payload = {
-    id: editingId || crypto.randomUUID(),
+    id: editingId || uuid(),
     title: fTitle.value.trim(),
     category: fCategory.value,
     code: fCode.value.trim(),
     variant: fVariant.value.trim(),
-    stars: Number(fStars.value || 0),
     sources: fSources.value.trim(),
     notes: fNotes.value.trim(),
-    owned: !!fOwned.checked,
+    cart: !!fCart.checked,
+    manual: !!fManual.checked,
+    box: !!fBox.checked,
     wanted: !!fWanted.checked
   };
 
@@ -406,6 +615,7 @@ el("editForm")?.addEventListener("submit", (e) => {
     data.push(payload);
   }
 
+  data = migrateItems(data);
   saveData(data);
   dlg?.close();
   render();
@@ -443,25 +653,83 @@ segButtons[0]?.classList.add("active");
 
 // ---------- Row click handling (event delegation) ----------
 tableWrap?.addEventListener("click", (e) => {
-  const tr = e.target.closest("tr.row-item");
+  const tr = e.target.closest?.("tr.row-item");
   if(!tr) return;
 
   const id = tr.dataset.id;
-  const action = e.target?.dataset?.action;
 
-  if(action === "owned"){
+  // Robust: finn knappen selv om du treffer emoji/innhold inni
+  const btn = e.target.closest?.("button[data-action]");
+  const action = btn?.dataset?.action;
+
+  // Hvis du trykker på en action-knapp, skal editor ALDRI åpnes
+  if(action){
+    e.preventDefault();
     e.stopPropagation();
-    const item = data.find(d => d.id === id);
-    toggleFlag(id, "owned", !item?.owned);
+
+    const idx = data.findIndex(d => d.id === id);
+    if(idx < 0) return;
+
+    // --- Games ---
+    if(action === "cart"){
+      data[idx].cart = !data[idx].cart;
+      saveData(data); render(); return;
+    }
+    if(action === "manual"){
+      data[idx].manual = !data[idx].manual;
+      saveData(data); render(); return;
+    }
+    if(action === "box"){
+      data[idx].box = !data[idx].box;
+      saveData(data); render(); return;
+    }
+
+    // --- Shared ---
+    if(action === "wanted"){
+      data[idx].wanted = !data[idx].wanted;
+      saveData(data); render(); return;
+    }
+
+    // --- Comics ---
+    if(action === "owned"){
+      data[idx].owned = !data[idx].owned;
+      saveData(data); render(); return;
+    }
+
+    if(action === "cond_bad" || action === "cond_ok" || action === "cond_good"){
+  const value =
+    action === "cond_bad" ? "bad" :
+    action === "cond_ok" ? "ok" :
+    "good";
+
+  const idx = data.findIndex(d => d.id === id);
+  if(idx < 0) return;
+
+  const wasOwned = !!data[idx].owned;
+  const prev = String(data[idx].comicCond || "");
+
+  // ✅ Toggle:
+  // - Hvis du trykker samme tilstand igjen mens du eier -> fjern eierskap
+  // - Ellers -> sett eierskap + tilstand
+  if(wasOwned && (prev || "ok") === value){
+    data[idx].owned = false;
+    // valgfritt: behold comicCond eller null det ut. Jeg nuller for ryddighet:
+    data[idx].comicCond = "";
+  }else{
+    data[idx].owned = true;
+    data[idx].comicCond = value;
+  }
+
+  saveData(data);
+  render();
+  return;
+}
+
+    // Ukjent action => ikke åpne editor
     return;
   }
-  if(action === "wanted"){
-    e.stopPropagation();
-    const item = data.find(d => d.id === id);
-    toggleFlag(id, "wanted", !item?.wanted);
-    return;
-  }
 
+  // Klikk på selve raden (ikke knapp) => åpne editor
   openEditor(id);
 });
 
@@ -478,7 +746,7 @@ function makeBackupPayload(items){
   return {
     meta: {
       app: "samlinger-pwa",
-      schema: 1,
+      schema: 2,
       exportedAt: new Date().toISOString(),
       collectionId: getCollectionId(),
       storageKey: STORAGE_KEY,
@@ -539,24 +807,7 @@ function isValidItemForImport(it){
 }
 
 function normalizeImportedItems(items){
-  return items.map((it) => ({
-    id: String(it.id ?? crypto.randomUUID()),
-    title: String(it.title ?? ""),
-    category: (function(){
-      const c = String(it.category ?? "").toLowerCase();
-      if(c === "confirmed") return "confirmed";
-      if(c === "unverified") return "unverified";
-      if(c === "uncertain") return "unverified"; // gammel verdi
-      return "unverified";
-    })(),
-    code: String(it.code ?? ""),
-    variant: String(it.variant ?? ""),
-    stars: Number.isFinite(Number(it.stars)) ? Number(it.stars) : 0,
-    sources: String(it.sources ?? ""),
-    notes: String(it.notes ?? ""),
-    owned: Boolean(it.owned ?? false),
-    wanted: Boolean(it.wanted ?? false)
-  }));
+  return migrateItems(items);
 }
 
 // ---------- JSON backup/restore ----------
@@ -618,7 +869,7 @@ el("fileImportJson")?.addEventListener("change", async (e) => {
 });
 
 // ---------- CSV export/import ----------
-const COLS = ["id","title","category","code","variant","stars","sources","notes","owned","wanted"];
+const COLS = ["id","title","category","code","variant","sources","notes","cart","manual","box","wanted"];
 
 el("btnExport")?.addEventListener("click", () => {
   const csv = toCSV(data);
@@ -642,7 +893,7 @@ el("fileImport")?.addEventListener("change", async (e) => {
     return;
   }
 
-  data = imported.map(x => ({ ...x, id: x.id || crypto.randomUUID() }));
+  data = migrateItems(imported.map(x => ({ ...x, id: x.id || uuid() })));
   saveData(data);
   render();
   e.target.value = "";
@@ -673,28 +924,39 @@ function fromCSV(text){
   if(rows.length === 0) return [];
 
   const header = rows[0].map(h => h.trim());
-  const idx = Object.fromEntries(COLS.map(c => [c, header.indexOf(c)]));
+
+  // støtt både nytt og gammelt schema
+  const idx = Object.fromEntries([
+    ...COLS.map(c => [c, header.indexOf(c)]),
+    ["owned", header.indexOf("owned")],   // legacy
+    ["stars", header.indexOf("stars")]    // legacy (ignoreres)
+  ]);
 
   return rows.slice(1)
     .filter(r => r.some(x => String(x).trim() !== ""))
-    .map(r => ({
-      id: at(r, idx.id),
-      title: at(r, idx.title) || "",
-      category: (function(){
-        const c = (at(r, idx.category) || "").toLowerCase();
-        if(c === "confirmed") return "confirmed";
-        if(c === "unverified") return "unverified";
-        if(c === "uncertain") return "unverified"; // gammel verdi
-        return "confirmed";
-      })(),
-      code: at(r, idx.code) || "",
-      variant: at(r, idx.variant) || "",
-      stars: Number(at(r, idx.stars) || 0),
-      sources: at(r, idx.sources) || "",
-      notes: at(r, idx.notes) || "",
-      owned: String(at(r, idx.owned) || "").toLowerCase() === "true",
-      wanted: String(at(r, idx.wanted) || "").toLowerCase() === "true"
-    }));
+    .map(r => {
+      const legacyOwned = String(at(r, idx.owned) || "").toLowerCase() === "true";
+
+      return {
+        id: at(r, idx.id),
+        title: at(r, idx.title) || "",
+        category: (function(){
+          const c = (at(r, idx.category) || "").toLowerCase();
+          if(c === "confirmed") return "confirmed";
+          if(c === "unverified") return "unverified";
+          if(c === "uncertain") return "unverified";
+          return "confirmed";
+        })(),
+        code: at(r, idx.code) || "",
+        variant: at(r, idx.variant) || "",
+        sources: at(r, idx.sources) || "",
+        notes: at(r, idx.notes) || "",
+        cart: String(at(r, idx.cart) || "").toLowerCase() === "true" || legacyOwned,
+        manual: String(at(r, idx.manual) || "").toLowerCase() === "true",
+        box: String(at(r, idx.box) || "").toLowerCase() === "true",
+        wanted: String(at(r, idx.wanted) || "").toLowerCase() === "true"
+      };
+    });
 }
 
 function at(row, i){
@@ -752,8 +1014,28 @@ function parseCSV(text){
 }
 
 // --- Service worker registration ---
-if("serviceWorker" in navigator){
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(()=>{});
-  });
+// Ikke bruk SW på localhost / lokal IP under utvikling (hindrer cache-trøbbel)
+if ("serviceWorker" in navigator) {
+  const host = location.hostname;
+  const isLocalDev =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+
+  if (!isLocalDev) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
 }
+window.addEventListener("load", async () => {
+  updateLastBackupUi();
+
+  if (Array.isArray(data) && data.length > 0) {
+    render();
+    return;
+  }
+  await loadDefaultCSVOrEmpty();
+});

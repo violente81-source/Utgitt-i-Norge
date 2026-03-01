@@ -9,9 +9,17 @@
   --danger:#dc2626;
   --good:#22c55e;
   --warn:#f59e0b;
+
+  /* status-toner */
+  --cart:#60a5fa;     /* blå */
+  --manual:#a78bfa;   /* lilla */
+  --box:#34d399;      /* grønn */
+  --want:#f59e0b;     /* gul */
+  --cib:#22c55e;      /* grønn */
 }
 
 *{ box-sizing:border-box; }
+
 body{
   margin:0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -19,6 +27,7 @@ body{
   color:var(--text);
 }
 
+/* ===== Header ===== */
 .header{
   padding:18px 16px;
   border-bottom:1px solid var(--border);
@@ -29,11 +38,22 @@ body{
   flex-wrap:wrap;
 }
 .title h1{ margin:0; font-size:20px; }
-.sub{ margin:6px 0 0; color:var(--muted); font-size:13px; max-width:70ch; }
-
+.sub{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+  max-width:70ch;
+}
 .header-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-.main{ padding:16px; display:grid; gap:14px; max-width:1100px; margin:0 auto; }
+/* ===== Layout/cards ===== */
+.main{
+  padding:16px;
+  display:grid;
+  gap:14px;
+  max-width:1100px;
+  margin:0 auto;
+}
 .card{
   background:rgba(15,23,42,.9);
   border:1px solid var(--border);
@@ -42,7 +62,14 @@ body{
   box-shadow: 0 8px 30px rgba(0,0,0,.25);
 }
 
-.controls .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+/* ===== Controls ===== */
+.controls .row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
 .controls .meta{ justify-content:space-between; }
 .hint{ color:var(--muted); font-size:12px; }
 
@@ -57,6 +84,7 @@ body{
 }
 textarea.input{ resize:vertical; }
 
+/* ===== Buttons ===== */
 .btn{
   background:var(--btn);
   color:white;
@@ -70,6 +98,7 @@ textarea.input{ resize:vertical; }
 .btn-secondary{ background:var(--btn2); }
 .btn-danger{ background:var(--danger); }
 
+/* ===== Segmented filter ===== */
 .segmented{
   display:flex;
   border:1px solid var(--border);
@@ -87,9 +116,12 @@ textarea.input{ resize:vertical; }
 .seg:last-child{ border-right:none; }
 .seg.active{ background:#111c36; }
 
+/* ===== Toggles ===== */
 .toggles{ display:flex; gap:14px; flex-wrap:wrap; }
 .toggle{ color:var(--text); font-size:13px; display:flex; gap:8px; align-items:center; }
+.toggle.compact{ font-size:12px; gap:6px; }
 
+/* ===== List header ===== */
 .list-header{
   display:flex;
   align-items:flex-start;
@@ -100,13 +132,18 @@ textarea.input{ resize:vertical; }
   border-bottom:1px solid var(--border);
 }
 .list-header h2{ margin:0; font-size:16px; }
-.table-wrap{ margin-top:10px; overflow:auto; }
 
+/* ===== Table wrap/table ===== */
+.table-wrap{
+  margin-top:10px;
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+}
 table{
   width:100%;
   border-collapse:separate;
   border-spacing:0;
-  min-width:780px;
+  min-width:0;
 }
 th, td{
   text-align:left;
@@ -114,9 +151,19 @@ th, td{
   border-bottom:1px solid var(--border);
   vertical-align:top;
 }
-th{ color:var(--muted); font-weight:700; font-size:12px; position:sticky; top:0; background:rgba(15,23,42,.98); }
+th{
+  color:var(--muted);
+  font-weight:700;
+  font-size:12px;
+  position:sticky;
+  top:0;
+  background:rgba(15,23,42,.98);
+  z-index: 1;
+}
 tr:hover td{ background:rgba(255,255,255,.03); }
 td.small{ color:var(--muted); font-size:12px; }
+
+/* ===== Generic badge ===== */
 .badge{
   display:inline-flex;
   gap:6px;
@@ -127,11 +174,26 @@ td.small{ color:var(--muted); font-size:12px; }
   border:1px solid var(--border);
   background:#0b1020;
 }
-.badge.good{ border-color:rgba(34,197,94,.35); }
-.badge.warn{ border-color:rgba(245,158,11,.35); }
 
-.star{ letter-spacing:1px; }
+/* ===== Progress ===== */
+.progress{
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #0b1020;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.progress-fill{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(37,99,235,.95), rgba(34,197,94,.85));
+  transition: width 180ms ease;
+}
 
+/* ===== Dialog ===== */
 .dialog{
   border:1px solid var(--border);
   border-radius:14px;
@@ -146,135 +208,242 @@ td.small{ color:var(--muted); font-size:12px; }
   gap:10px;
   margin:12px 0;
 }
-.grid label{ display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); }
-.span2{ grid-column:span 2; }
-.dialog-actions{
+.grid label{
   display:flex;
-  gap:10px;
-  align-items:center;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+  color:var(--muted);
 }
+.span2{ grid-column:span 2; }
+.dialog-actions{ display:flex; gap:10px; align-items:center; }
 .spacer{ flex:1; }
 
-@media (max-width:720px){
-  table{ min-width:680px; }
-  .grid{ grid-template-columns:1fr; }
-  .span2{ grid-column:span 1; }
-}
-.progress{
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #0b1020;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
-}
-
-.progress-fill{
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(37,99,235,.95), rgba(34,197,94,.85));
-  transition: width 180ms ease;
-}
-.title-row{ display:flex; flex-direction:column; gap:6px; }
-.title-top{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.game-title{ font-size:14px; }
-.title-sub{ opacity:.9; }
-
-.status-cell{ white-space:nowrap; }
-.toggle.compact{ font-size:12px; gap:6px; }
-.btn-compact{ padding:8px 10px; margin-top:8px; }
-
-.status-cell{
-  display:flex;
+/* ===== Row grid: title | badge | pills ===== */
+.row-grid{
+  display:grid;
+  grid-template-columns: 1fr 170px 120px;
+  align-items:center;
   gap:10px;
-  align-items:flex-start;   /* Viktig */
-  justify-content:flex-end;
-  padding-top:6px;          /* Justerer høyde visuelt */
+}
+.col-title{ min-width:0; }
+.col-badge{ justify-self:start; }
+.col-stars{ justify-self:start; }
+
+/* Title line: icons + issue-pill + title-text + wanted */
+.game-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  font-size:14px;
+}
+
+/* Title text truncation */
+.title-text{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-td{
-  vertical-align: top;
+/* Icons beside title */
+.title-icon{
+  font-size: 14px;
+  margin: 0 2px;
+  vertical-align: middle;
+  display:inline-block;
+  flex:0 0 auto;
+}
+.title-icon.wanted{
+  color: rgba(245,158,11,1);
+  filter: drop-shadow(0 0 6px rgba(245,158,11,.45));
+  animation: starPop 160ms ease;
+}
+.title-icon.cib{
+  color: rgba(34,197,94,.95);
+  filter: drop-shadow(0 0 6px rgba(34,197,94,.35));
 }
 
-.chip{
-  border:1px solid var(--border);
-  background:#0b1020;
-  color:var(--text);
+/* Issue pill (#01 etc) */
+.issue-pill{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 10px;
   border-radius:999px;
-  padding:10px 14px;
-  font-weight:700;
-  cursor:pointer;
-  min-width:76px;
-  touch-action: manipulation;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-weight:800;
+  font-size:12px;
 }
 
-.chip:active{ transform: translateY(1px); }
-
-.chip-on{
+/* Pills C/M/B or D/OK/VG */
+.have-pills{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
+.have-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:32px;
+  font-size:12px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--muted);
+}
+.have-pill.on{
+  color: rgba(34,197,94,.95);
   border-color: rgba(34,197,94,.45);
-  background: rgba(34,197,94,.12);
+  background: rgba(34,197,94,.14);
 }
-.title-row{ padding-top: 2px; }  /* liten harmonisering */
-.status-cell{ padding-top: 2px; align-items:flex-start; }
-
-/* Rad-layout for oversikt: Tittel | Badge | Stjerner */
-.row-grid{
-  display: grid;
-  grid-template-columns: 1fr 170px 90px; /* juster bredder om du vil */
-  align-items: center;
-  gap: 10px;
+.have-pill.cib{
+  color: rgba(34,197,94,.98);
+  border-color: rgba(34,197,94,.55);
+  background: rgba(34,197,94,.18);
+  font-weight: 800;
 }
 
-.col-title{
-  min-width: 0;
+/* ===== Status column (icon buttons) ===== */
+.status-cell{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+  white-space:nowrap;
 }
 
-.game-title{
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; /* lange titler blir ... */
+/* icon buttons */
+.iconchip{
+  width:36px;
+  height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  cursor:pointer;
+  padding:0;
+  touch-action: manipulation;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.iconchip:hover{
+  border-color: rgba(255,255,255,.24);
+  background: rgba(255,255,255,.08);
+}
+.iconchip:active{ transform: translateY(1px) scale(0.98); }
+
+/* base “on” */
+.iconchip-on{
+  background: rgba(255,255,255,.14);
+  border-color: rgba(255,255,255,.30);
+  box-shadow: 0 0 0 4px rgba(255,255,255,.04);
 }
 
-.col-badge{
-  justify-self: start;
+/* action-specific “on” (games + wanted) */
+.iconchip-on[data-action="cart"]{
+  border-color: rgba(96,165,250,.65);
+  background: rgba(96,165,250,.18);
+  box-shadow: 0 0 0 4px rgba(96,165,250,.10);
+}
+.iconchip-on[data-action="manual"]{
+  border-color: rgba(167,139,250,.65);
+  background: rgba(167,139,250,.18);
+  box-shadow: 0 0 0 4px rgba(167,139,250,.10);
+}
+.iconchip-on[data-action="box"]{
+  border-color: rgba(52,211,153,.65);
+  background: rgba(52,211,153,.18);
+  box-shadow: 0 0 0 4px rgba(52,211,153,.10);
+}
+.iconchip-on[data-action="wanted"]{
+  border-color: rgba(245,158,11,.70);
+  background: rgba(245,158,11,.18);
+  box-shadow: 0 0 0 4px rgba(245,158,11,.12);
+  animation: starPop 160ms ease;
 }
 
-.col-stars{
-  justify-self: start;
+/* comics condition buttons */
+.iconchip-on[data-action="cond_bad"]{
+  border-color: rgba(239,68,68,.65);
+  background: rgba(239,68,68,.16);
+  box-shadow: 0 0 0 4px rgba(239,68,68,.08);
+}
+.iconchip-on[data-action="cond_ok"]{
+  border-color: rgba(34,197,94,.55);
+  background: rgba(34,197,94,.14);
+  box-shadow: 0 0 0 4px rgba(34,197,94,.08);
+}
+.iconchip-on[data-action="cond_good"]{
+  border-color: rgba(34,197,94,.70);
+  background: rgba(34,197,94,.18);
+  box-shadow: 0 0 0 4px rgba(34,197,94,.10);
 }
 
-/* På smal skjerm: la badge/stjerner bryte pent */
+/* ===== Row highlight ===== */
+tr.row-item{ transition: background 120ms ease; }
+tr.row-item:hover{ background: rgba(255,255,255,0.04); }
+
+/* “har noe” */
+.row-have{
+  background: rgba(34,197,94,0.07);
+}
+tr.row-item.row-have:hover{
+  background: rgba(34,197,94,0.10);
+}
+
+/* CIB highlight */
+.row-cib{
+  background: rgba(34,197,94,0.10);
+  box-shadow: inset 0 0 0 1px rgba(34,197,94,0.18);
+}
+.row-cib:hover{
+  background: rgba(34,197,94,0.12);
+}
+
+/* ===== Category badge (dot) ===== */
+.cat{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.cat-dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.03);
+}
+.cat-dot.confirmed{
+  background: rgba(34,197,94,.90);
+  border-color: rgba(34,197,94,.55);
+}
+.cat-dot.unverified{
+  background: rgba(245,158,11,.95);
+  border-color: rgba(245,158,11,.65);
+}
+.cat-text{
+  font-size:12px;
+  color: var(--muted);
+  white-space:nowrap;
+}
 @media (max-width: 720px){
-  .row-grid{
-    grid-template-columns: 1fr;
-    row-gap: 6px;
-  }
-  .col-badge, .col-stars{
-    justify-self: start;
-  }
+  .cat-text{ display:none; }
 }
 
-.star{
-  font-size: 12px;
-  letter-spacing: 1px;
-  opacity: 0.85;
-}
-
-tr.row-item{
-  transition: background 120ms ease;
-}
-
-tr.row-item:hover{
-  background: rgba(255,255,255,0.04);
-}
-
-.row-owned{
-  background: rgba(34,197,94,0.06);
-}
+/* ===== Group (details) ===== */
 .group{
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -282,7 +451,6 @@ tr.row-item:hover{
   overflow: hidden;
   background: rgba(15,23,42,.55);
 }
-
 .group-summary{
   cursor: pointer;
   padding: 12px 14px;
@@ -291,15 +459,117 @@ tr.row-item:hover{
   justify-content:space-between;
   gap:12px;
 }
-
 .group-summary::-webkit-details-marker{ display:none; }
-
 .group[open] .group-summary{
   border-bottom: 1px solid var(--border);
   background: rgba(255,255,255,.02);
 }
-
 .group-title{ font-weight: 800; letter-spacing: .2px; }
 .group-meta{ opacity: .75; font-size: .9rem; }
-
 .group-body{ padding: 0 8px 10px 8px; }
+
+.group-complete{
+  border-color: rgba(34,197,94,.45);
+  background: rgba(34,197,94,.06);
+}
+.group-complete .group-summary{
+  background: rgba(34,197,94,.08);
+}
+.group-done{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:20px;
+  height:20px;
+  border-radius:999px;
+  border: 1px solid rgba(34,197,94,.55);
+  background: rgba(34,197,94,.14);
+  color: rgba(34,197,94,.95);
+  font-weight: 900;
+  margin-right: 6px;
+}
+
+/* ===== Animations ===== */
+@keyframes starPop{
+  0% { transform: scale(0.7); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 720px){
+  .grid{ grid-template-columns:1fr; }
+  .span2{ grid-column:span 1; }
+
+  /* Stacking i cellen for mindre skjerm */
+  .row-grid{
+    grid-template-columns: 1fr;
+    row-gap:6px;
+  }
+
+  /* tittel kan være 2 linjer på mobil */
+  .title-text{
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.25;
+  }
+
+  /* statusknapper litt lavere (visuelt mer på linje med pills) */
+  .status-cell{
+    align-items:flex-end;
+    padding-bottom: 8px;
+  }
+
+  .have-pills{ margin-top: 6px; }
+
+  /* gi statuskolonnen litt fast bredde */
+  th:nth-child(2), td:nth-child(2){ width: 140px; }
+}
+
+@media (max-width: 480px){
+  .iconchip{ width:32px; height:32px; }
+}
+/* --- FIX: unngå dobbel-linjer på mobil --- */
+th, td{
+  border-bottom: none; /* fjern per-celle linje */
+}
+
+/* én linje per rad */
+tbody tr td{
+  border-bottom: 1px solid var(--border);
+}
+
+/* ikke linje etter siste rad i tabellen */
+tbody tr:last-child td{
+  border-bottom: none;
+}
+.group-summary{
+  border-bottom: none !important;
+}
+/* === Mobil/desktop: én separator per rad (ikke per celle) === */
+table tbody tr td{
+  border-bottom: none !important; /* fjerner linjen på hver celle */
+}
+
+/* lag en felles linje for hele raden */
+table tbody tr{
+  position: relative;
+}
+
+table tbody tr::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:1px;
+  background: var(--border);
+}
+
+/* ikke separator på siste rad */
+table tbody tr:last-child::after{
+  display:none;
+}
