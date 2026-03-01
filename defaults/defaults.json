@@ -1,0 +1,13 @@
+[
+  "defaults/nes.csv",
+  "defaults/snes.csv",
+  "defaults/ps2.csv",
+  "defaults/sms.csv",
+  "defaults/comics-conan.csv",
+  "defaults/comics-nintendo-magasin.csv",
+  "defaults/comics-action-force.csv",
+  "defaults/comics-transformers.csv",
+  "defaults/comics-turtles.csv",
+  "defaults/comics-star-wars.csv",
+  "defaults/comics-master-of-the-universe.csv"
+]
