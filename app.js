@@ -205,6 +205,8 @@ function migrateItems(items){
       variant: String(obj.variant ?? ""),
       sources: String(obj.sources ?? ""),
       notes: String(obj.notes ?? ""),
+      comicCond: String(obj.comicCond ?? ""),
+      owned: Boolean(obj.owned ?? false),
       cart: Boolean(obj.cart ?? false),
       manual: Boolean(obj.manual ?? false),
       box: Boolean(obj.box ?? false),
@@ -225,6 +227,16 @@ function migrateItems(items){
     if(typeof obj.manual === "string"){ out.manual = obj.manual.toLowerCase() === "true"; changed = true; }
     if(typeof obj.box === "string"){ out.box = obj.box.toLowerCase() === "true"; changed = true; }
     if(typeof obj.wanted === "string"){ out.wanted = obj.wanted.toLowerCase() === "true"; changed = true; }
+
+    // comics: legacy sync between owned/comicCond
+    if(out.owned && !out.comicCond){
+      out.comicCond = "ok";
+      changed = true;
+    }
+    if(out.comicCond && !out.owned){
+      out.owned = true;
+      changed = true;
+    }
 
     return out;
   });
@@ -363,7 +375,7 @@ function render(){
   const total = data.length;
 
   const haveCount = (KIND === "comics")
-    ? data.filter(d => d.owned).length
+    ? data.filter(d => (d.comicCond || d.owned)).length
     : data.filter(d => d.cart).length;
 
   const cibCount = (KIND === "games")
@@ -399,7 +411,7 @@ function render(){
       const hasAnyGame = hasCart || hasManual || hasBox;
 
       // --- Comics ---
-      const comicOwned = !!it.owned;
+      const comicOwned = !!(it.comicCond || it.owned);
 const rawComicCond = String(it.comicCond || ""); // kan være "", "bad", "ok", "good"
 const comicCond = comicOwned ? (rawComicCond || "ok") : ""; // bare aktiv hvis eid
 const comicIsGood = comicOwned && comicCond === "good";
@@ -484,7 +496,7 @@ const issue = (KIND === "comics")
     const shouldOpen = autoOpen || openGroups.has(String(key));
 
     const haveInGroup = (KIND === "comics")
-      ? items.filter(x => x.owned).length
+      ? items.filter(x => (x.comicCond || x.owned)).length
       : items.filter(x => x.cart).length;
 
     const isComplete = count > 0 && haveInGroup === count;
@@ -589,6 +601,13 @@ btnAdd?.addEventListener("click", () => {
 el("editForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
 
+  const submitter = e.submitter || document.activeElement;
+  const actionVal = submitter && submitter.getAttribute ? submitter.getAttribute("value") : null;
+  if(actionVal === "cancel"){
+    dlg?.close();
+    return;
+  }
+
   const payload = {
     id: editingId || uuid(),
     title: fTitle.value.trim(),
@@ -610,7 +629,25 @@ el("editForm")?.addEventListener("submit", (e) => {
 
   if(editingId){
     const idx = data.findIndex(d => d.id === editingId);
-    if(idx >= 0) data[idx] = payload;
+    if(idx >= 0){
+      const prev = data[idx];
+
+      // Bekreft hvis du fjerner noe som var markert som "har"
+      if(prev.cart && !payload.cart){
+        const ok = confirm(`Du har registrert "${prev.title}" som Cart. Vil du fjerne Cart?`);
+        if(!ok) return;
+      }
+      if(prev.manual && !payload.manual){
+        const ok = confirm(`Du har registrert "${prev.title}" med manual. Vil du fjerne manual?`);
+        if(!ok) return;
+      }
+      if(prev.box && !payload.box){
+        const ok = confirm(`Du har registrert "${prev.title}" med boks. Vil du fjerne boks?`);
+        if(!ok) return;
+      }
+
+      data[idx] = { ...prev, ...payload };
+    }
   }else{
     data.push(payload);
   }
@@ -672,14 +709,29 @@ tableWrap?.addEventListener("click", (e) => {
 
     // --- Games ---
     if(action === "cart"){
+      const was = !!data[idx].cart;
+      if(was){
+        const ok = confirm(`Du har registrert dette som Cart. Vil du fjerne Cart-markeringen?`);
+        if(!ok) return;
+      }
       data[idx].cart = !data[idx].cart;
       saveData(data); render(); return;
     }
     if(action === "manual"){
+      const was = !!data[idx].manual;
+      if(was){
+        const ok = confirm(`Du har registrert at dette har manual. Vil du fjerne manual-markeringen?`);
+        if(!ok) return;
+      }
       data[idx].manual = !data[idx].manual;
       saveData(data); render(); return;
     }
     if(action === "box"){
+      const was = !!data[idx].box;
+      if(was){
+        const ok = confirm(`Du har registrert at dette har boks. Vil du fjerne boks-markeringen?`);
+        if(!ok) return;
+      }
       data[idx].box = !data[idx].box;
       saveData(data); render(); return;
     }
@@ -705,13 +757,17 @@ tableWrap?.addEventListener("click", (e) => {
   const idx = data.findIndex(d => d.id === id);
   if(idx < 0) return;
 
-  const wasOwned = !!data[idx].owned;
-  const prev = String(data[idx].comicCond || "");
+  const wasOwned = !!(data[idx].comicCond || data[idx].owned);
+
+  const prev = String(data[idx].comicCond || (wasOwned ? "ok" : ""));
 
   // ✅ Toggle:
   // - Hvis du trykker samme tilstand igjen mens du eier -> fjern eierskap
   // - Ellers -> sett eierskap + tilstand
   if(wasOwned && (prev || "ok") === value){
+    const ok = confirm("Du har registrert at du eier dette nummeret. Vil du fjerne eierskap?");
+    if(!ok) return;
+
     data[idx].owned = false;
     // valgfritt: behold comicCond eller null det ut. Jeg nuller for ryddighet:
     data[idx].comicCond = "";
